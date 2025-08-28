@@ -3,10 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Format: postgresql+driver://user:password@host:port/database
-user = os.getenv("USERNAME")
-password = os.getenv("PASSWORD")
-host = os.getenv("HOST")
-database = os.getenv("DATABASE_NAME")
+user = 'postgres'
+password = 'dhukka7860'
+host = 'localhost'
+database = 'market_db'
 
 DATABASE_URL = f"postgresql+psycopg2://{user}:{password}@{host}:5432/{database}"
 
