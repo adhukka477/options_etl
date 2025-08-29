@@ -20,6 +20,7 @@ def make_option_model(ticker: str):
         expiry_date = Column(Date, nullable=False, index=True)
         option_type = Column(String(4), nullable=False, index=True)   # 'C' or 'P'
         strike = Column(Numeric(10, 2), nullable=False, index=True)
+        underlying_price = Column(Numeric(10,2), nullable=False)
         last_trade_date = Column(DateTime, nullable=True)
         last_price = Column(Numeric(10, 4), nullable=True)
         bid = Column(Numeric(10, 4), nullable=True)

@@ -5,8 +5,8 @@ from models.db_models import Base, make_option_model
 import yfinance as yf
 import pandas as pd
 import datetime
-
 from models.pydantic_models import OptionContract
+import time
 
 tickers = ['SPY']
 OptionsDbModels = {ticker:make_option_model(ticker) for ticker in tickers}
@@ -37,6 +37,7 @@ def insert(ticker, data):
             expiry_date=opt.expiry_date,
             option_type=opt.option_type,
             strike=opt.strike,
+            underlying_price= opt.underlying_price,
             last_trade_date=opt.lastTradeDate,
             last_price=opt.lastPrice,
             bid=opt.bid,
@@ -55,7 +56,8 @@ def insert(ticker, data):
 
 def fetch_options_chain(ticker, exp_dates):
 
-    puts_chain = calls_chain = []
+    puts_chain = []
+    calls_chain = []
     for exp in exp_dates:
         opt = yf.Ticker(ticker).option_chain(exp)
         puts = opt.puts
@@ -76,11 +78,28 @@ def fetch_options_chain(ticker, exp_dates):
 
 def main():
 
-    for ticker in tickers:
-        options_exp_dates = yf.Ticker(ticker).options
-        options_chain = fetch_options_chain(ticker=ticker, exp_dates=options_exp_dates)
-        options_chain["underlying"] = yf.Ticker(ticker).history(period = '1d', interval = '1d')["Close"].to_list()[-1]
-        validated_chain = [OptionContract(**x) for x in options_chain.to_dict(orient='records')]
-        insert(ticker = ticker, data = validated_chain)
+    print("Starting ETL Process")
+    market_open_datetime = datetime.datetime.strptime("08:35:00.00", "%H:%M:%S.%f")
+    market_close_datetime = datetime.datetime.strptime("15:01:00.00", "%H:%M:%S.%f")
+    next_capture_datetime = market_open_datetime
+
+    while True:
+        current_datetime = datetime.datetime.now()
+        if current_datetime.time() >= market_close_datetime.time():
+            next_capture_datetime = market_open_datetime
+        
+        if current_datetime.time() >= next_capture_datetime.time() and current_datetime.time() <= market_close_datetime.time():
+            print(f"{current_datetime} - Fetching Data")
+            for ticker in tickers:
+                options_exp_dates = yf.Ticker(ticker).options
+                options_chain = fetch_options_chain(ticker=ticker, exp_dates=options_exp_dates)
+                options_chain["underlying_price"] = yf.Ticker(ticker).history(period = '1d', interval = '1d')["Close"].to_list()[-1]
+                validated_chain = [OptionContract(**x) for x in options_chain.to_dict(orient='records')]
+                insert(ticker = ticker, data = validated_chain)
+
+            next_capture_datetime = next_capture_datetime + datetime.timedelta(minutes=5)
+
+        else:
+            time.sleep(1)
 
 main()

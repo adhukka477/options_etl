@@ -15,7 +15,7 @@ def calculate_delta(data):
     
     flag = 'c' if data["option_type"].lower() == 'CALL' else 'p'
     S = data["strike"]
-    K = data["underlying"]
+    K = data["underlying_price"]
     t = (data["expiry_date"] - dt.now()).total_seconds() / (365 * 24 * 60 * 60)
     sigma = data["impliedVolatility"]
     return delta(flag=flag, S=S, K=K, t = t, r=0.05, sigma=sigma)
@@ -24,7 +24,7 @@ def calculate_gamma(data):
     
     flag = 'c' if data["option_type"].lower() == 'CALL' else 'p'
     S = data["strike"]
-    K = data["underlying"]
+    K = data["underlying_price"]
     t = (data["expiry_date"] - dt.now()).total_seconds() / (365 * 24 * 60 * 60)
     sigma = data["impliedVolatility"]
     
@@ -34,7 +34,7 @@ def calculate_theta(data):
     
     flag = 'c' if data["option_type"].lower() == 'CALL' else 'p'
     S = data["strike"]
-    K = data["underlying"]
+    K = data["underlying_price"]
     t = (data["expiry_date"] - dt.now()).total_seconds() / (365 * 24 * 60 * 60)
     sigma = data["impliedVolatility"]
     
@@ -44,7 +44,7 @@ def calculate_vega(data):
     
     flag = 'c' if data["option_type"].lower() == 'CALL' else 'p'
     S = data["strike"]
-    K = data["underlying"]
+    K = data["underlying_price"]
     t = (data["expiry_date"] - dt.now()).total_seconds() / (365 * 24 * 60 * 60)
     sigma = data["impliedVolatility"]
     
