@@ -11,7 +11,7 @@ class OptionContract(BaseModel):
     expiry_date: datetime
     option_type: str
     strike: float
-    underlying:float
+    underlying_price:float
     lastTradeDate: Optional[datetime]
     lastPrice: Optional[float] = Field(default = None)
     bid: Optional[float] = Field(default = None)
