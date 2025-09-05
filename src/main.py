@@ -1,5 +1,5 @@
 import pytz
-from postgres_conn import Session, engine
+from postgres_conn import Session, engine, init_pgconn
 from models.db_models import Base, make_option_model
 import yfinance as yf
 import pandas as pd
@@ -9,6 +9,7 @@ import time
 import pandas_market_calendars as mcal
 import holidays
 
+init_pgconn()
 
 market_open_datetime = datetime.datetime.strptime("08:31:00.00", "%H:%M:%S.%f")
 market_close_datetime = datetime.datetime.strptime("15:01:00.00", "%H:%M:%S.%f")

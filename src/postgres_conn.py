@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # Format: postgresql+driver://user:password@host:port/database
@@ -22,3 +22,14 @@ engine = create_engine(
 
 # Create session factory
 Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+def init_pgconn():
+    try:
+        with Session() as session:
+            result = session.execute(text("SELECT 1"))
+            print("Postgres Connection Succesful!")
+            return True
+    except Exception as e:
+        print("Postgres Connection Failed...")
+        raise e
