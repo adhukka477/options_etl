@@ -25,21 +25,42 @@ class OptionContract(BaseModel):
     gamma: Optional[float] = Field(default=None)
     created_ts: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
+
+    # --- Clean up NaN or None values
+    @validator(
+        'lastPrice', 'bid', 'ask', 'volume', 'openInterest',
+        'impliedVolatility', 'delta', 'vega', 'theta', 'gamma',
+        pre=True, always=True
+    )
+    def clean_nan_values(cls, v):
+        if v is None:
+            return None
+        try:
+            if isinstance(v, float) and math.isnan(v):
+                return None
+        except TypeError:
+            pass
+        return v
+
     @validator('delta', pre=True, always=True)
     def add_delta(cls, v, values):
-        return calculate_delta(values)
+        result = calculate_delta(values)
+        return None if result is None or (isinstance(result, float) and math.isnan(result)) else result
 
     @validator('vega', pre=True, always=True)
     def add_vega(cls, v, values):
-        return calculate_vega(values)
+        result = calculate_vega(values)
+        return None if result is None or (isinstance(result, float) and math.isnan(result)) else result
 
     @validator('theta', pre=True, always=True)
     def add_theta(cls, v, values):
-        return calculate_theta(values)
+        result = calculate_theta(values)
+        return None if result is None or (isinstance(result, float) and math.isnan(result)) else result
 
     @validator('gamma', pre=True, always=True)
     def add_gamma(cls, v, values):
-        return calculate_gamma(values)
+        result = calculate_gamma(values)
+        return None if result is None or (isinstance(result, float) and math.isnan(result)) else result
 
 
     
