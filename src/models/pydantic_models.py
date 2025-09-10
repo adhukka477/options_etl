@@ -22,7 +22,7 @@ class OptionContract(BaseModel):
     vega: Optional[float] = Field(default=None)
     theta: Optional[float] = Field(default=None)
     gamma: Optional[float] = Field(default=None)
-    created_ts: Optional[datetime] = Field(default_factory=datetime.now())
+    created_ts: Optional[datetime] = Field(default_factory=datetime.now)
 
     # --- Clean up NaN or None values
     @validator(
