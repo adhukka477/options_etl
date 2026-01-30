@@ -14,7 +14,25 @@ from models.pydantic_models import OptionContract
 import time
 
 
-tickers = ["SPY"]
+tickers = [
+    "^SPX",
+    "^IXIC",
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "BAC",
+    "DIS",
+    "GS",
+    "INTC",
+    "IWM",
+    "JPM",
+    "MSFT",
+    "NVDA",
+    "PLTR",
+    "QQQ",
+    "SPY",
+    "TSLA",
+]
 
 init_pgconn()
 OptionsDbModels = {ticker: make_option_model(ticker) for ticker in tickers}
@@ -89,19 +107,37 @@ def main():
             ):
                 print(f"{current_datetime} - Fetching Data")
                 for ticker in tickers:
-                    options_exp_dates = available_exp_dates(ticker)[0]
-                    options_chain = fetch_options_chain(
-                        ticker=ticker, exp_dates=[options_exp_dates]
-                    )
-                    options_chain["underlying_price"] = fetch_last_price(ticker)
-                    validated_chain = [
-                        OptionContract(**x)
-                        for x in options_chain.to_dict(orient="records")
-                    ]
-                    insert(ticker=ticker, data=validated_chain)
+                    options_exp_dates = available_exp_dates(ticker)
+                    if options_exp_dates:
+                        options_chain = fetch_options_chain(
+                            ticker=ticker, exp_dates=options_exp_dates
+                        )
+                    else:
+                        continue
+                    if not options_chain.empty:
+
+                        try:
+                            last_price = fetch_last_price(ticker)
+                        except:
+                            continue
+
+                        options_chain["underlying_price"] = last_price
+                        validated_chain = []
+
+                        for x in options_chain.to_dict(orient="records"):
+                            try:
+                                validated_chain.append(OptionContract(**x))
+                            except:
+                                print(
+                                    f"Options Contract Validation Failed for {ticker}"
+                                )
+                                continue
+                        insert(ticker=ticker, data=validated_chain)
+                    else:
+                        continue
 
                 next_capture_datetime = next_capture_datetime + datetime.timedelta(
-                    minutes=1
+                    minutes=5
                 )
 
         time.sleep(1)

@@ -4,7 +4,7 @@ import datetime
 import pandas_market_calendars as mcal
 import holidays
 
-market_open_datetime = datetime.datetime.strptime("08:31:00.00", "%H:%M:%S.%f")
+market_open_datetime = datetime.datetime.strptime("08:35:00.00", "%H:%M:%S.%f")
 market_close_datetime = datetime.datetime.strptime("15:01:00.00", "%H:%M:%S.%f")
 if (
     datetime.datetime.now().time() > market_open_datetime.time()
@@ -14,7 +14,12 @@ if (
 
 
 def available_exp_dates(ticker):
-    return yf.Ticker(ticker).options
+    try:
+        dates = sorted(yf.Ticker(ticker).options)
+        return dates
+    except:
+        print(f"Failed to fetch exp dates for {ticker}")
+        return None
 
 
 def check_market_status(current_datetime):
@@ -54,22 +59,36 @@ def fetch_options_chain(ticker, exp_dates):
     puts_chain = []
     calls_chain = []
     for exp in exp_dates:
-        opt = yf.Ticker(ticker).option_chain(exp)
-        puts = opt.puts
-        puts["option_type"] = "PUT"
-        puts["expiry_date"] = calculate_exp_time(date=exp)
-        puts_chain.append(opt.puts)
-        calls = opt.calls
-        calls["option_type"] = "CALL"
-        calls["expiry_date"] = calculate_exp_time(date=exp)
-        calls_chain.append(opt.calls)
+        try:
+            opt = yf.Ticker(ticker).option_chain(exp)
+            puts = opt.puts
+            puts["option_type"] = "PUT"
+            puts["expiry_date"] = calculate_exp_time(date=exp)
+            puts_chain.append(opt.puts)
+            calls = opt.calls
+            calls["option_type"] = "CALL"
+            calls["expiry_date"] = calculate_exp_time(date=exp)
+            calls_chain.append(opt.calls)
+        except:
+            print(f"Failed to Fetch Chain for {ticker}")
+            continue
 
-    chain = pd.concat(puts_chain + calls_chain)
-    chain.dropna(inplace=True)
+    if puts_chain and calls_chain:
+        chain = pd.concat(puts_chain + calls_chain)
+        chain.dropna(inplace=True)
 
-    return chain
+        return chain
+
+    else:
+        return pd.DataFrame()
 
 
 def fetch_last_price(ticker):
-
-    return yf.Ticker(ticker).history(period="1d", interval="1d")["Close"].to_list()[-1]
+    try:
+        return (
+            yf.Ticker(ticker)
+            .history(period="1wk", interval="1d")["Close"]
+            .to_list()[-1]
+        )
+    except:
+        return None
