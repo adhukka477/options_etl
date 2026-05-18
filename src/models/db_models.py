@@ -32,4 +32,4 @@ class OptionsEodHistory(Base):
     vega = Column(Float, nullable=True)
     theta = Column(Float, nullable=True)
     gamma = Column(Float, nullable=True)
-    report_date = Column(Date, server_default=func.current_date(), nullable=False)
+    created_ts = Column(Date, server_default=func.current_date(), nullable=False)

@@ -1,4 +1,5 @@
 import pytz
+from notifications import send_confirmation_email
 from postgres_conn import Session, init_pgconn
 from models.db_models import OptionsEodHistory
 from yahoo_finance import (
@@ -83,41 +84,59 @@ def on_market_close_time():
 def main():
 
     while True:
+
         time.sleep(1)
-        # if ( True
-        #     # on_market_close_time()
-        #     # and check_market_status(datetime.datetime.now()) == "OPEN"
-        # ):
-        if True:
-            print(
-                f"*************  Starting ETL Process -- {datetime.datetime.now(cst)} CST  *************"
-            )
 
-            for ticker in tickers:
-                options_exp_dates = available_exp_dates(ticker)
-                if options_exp_dates:
-                    options_chain = fetch_options_chain(
-                        ticker=ticker, exp_dates=options_exp_dates
-                    )
-                else:
-                    print(f"No options expiration dates found for {ticker}")
-                    continue
-                if not options_chain.empty:
+        if check_market_status(datetime.datetime.now()) == "OPEN":
 
-                    validated_chain = []
-                    underlying_price = fetch_last_price(ticker)
-                    for x in options_chain.to_dict(orient="records"):
-                        try:
-                            x["underlying_price"] = underlying_price
-                            validated_chain.append(OptionContract(**x))
-                        except:
-                            continue
-                    insert_options(ticker=ticker, data=validated_chain)
-                    print(f"Inserted {len(validated_chain)} records for {ticker}")
-                else:
-                    print(f"No options data found for {ticker}")
-                    continue
-                time.sleep(3)
+            if on_market_close_time():
+
+                print(
+                    f"*************  Starting ETL Process -- {datetime.datetime.now(cst)} CST  *************"
+                )
+
+                successful_tickers = []
+                failed_tickers = []
+
+                for ticker in tickers:
+                    options_exp_dates = available_exp_dates(ticker)
+                    if options_exp_dates:
+                        options_chain = fetch_options_chain(
+                            ticker=ticker, exp_dates=options_exp_dates
+                        )
+                    else:
+                        print(f"No options expiration dates found for {ticker}")
+                        failed_tickers.append(ticker)
+                        continue
+                    if not options_chain.empty:
+
+                        validated_chain = []
+                        underlying_price = fetch_last_price(ticker)
+                        for x in options_chain.to_dict(orient="records"):
+                            try:
+                                x["underlying_price"] = underlying_price
+                                validated_chain.append(OptionContract(**x))
+                            except:
+                                continue
+                        insert_options(ticker=ticker, data=validated_chain)
+                        successful_tickers.append(ticker)
+                    else:
+                        print(f"No options data found for {ticker}")
+                        failed_tickers.append(ticker)
+                        continue
+                    time.sleep(3)
+
+                send_confirmation_email(
+                    smtp_server="smtp.gmail.com",
+                    smtp_port=587,
+                    smtp_username="alishan0717@gmail.com",
+                    smtp_password="lvpg uoph mcfg racu",
+                    sender_email="alishan0717@gmail.com",
+                    recipient_email="alishandhukka@gmail.com",
+                    subject="Options ETL Process Complete",
+                    successful_tickers=successful_tickers,
+                    failed_tickers=failed_tickers,
+                )
 
 
 main()

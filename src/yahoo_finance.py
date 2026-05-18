@@ -4,14 +4,6 @@ import datetime
 import pandas_market_calendars as mcal
 import holidays
 
-market_open_datetime = datetime.datetime.strptime("08:35:00.00", "%H:%M:%S.%f")
-market_close_datetime = datetime.datetime.strptime("15:01:00.00", "%H:%M:%S.%f")
-if (
-    datetime.datetime.now().time() > market_open_datetime.time()
-    and datetime.datetime.now().time() < market_close_datetime.time()
-):
-    market_open_datetime = datetime.datetime.now()
-
 
 def available_exp_dates(ticker):
     try:
@@ -33,8 +25,6 @@ def check_market_status(current_datetime):
         return "WEEKEND"
     elif current_datetime in us_holidays:
         return "HOLIDAY"
-    elif current_datetime.time() >= market_close_datetime.time():
-        return "CLOSED"
     else:
         return "OPEN"
 
