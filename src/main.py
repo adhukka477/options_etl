@@ -1,15 +1,17 @@
 import pytz
 from notifications import send_confirmation_email
 from postgres_conn import Session, init_pgconn
-from models.db_models import OptionsEodHistory
+from models.db_models import OptionsEodHistory, PriceEodHistory
+from view import refresh_materialized_views
 from yahoo_finance import (
     check_market_status,
     fetch_last_price,
     fetch_options_chain,
     available_exp_dates,
+    fetch_price_history,
 )
 import datetime
-from models.pydantic_models import OptionContract
+from models.pydantic_models import OptionContract, PriceHistory
 import time
 from tickers import tickers
 from sqlalchemy.dialects.postgresql import insert
@@ -26,51 +28,83 @@ cst = pytz.timezone("US/Central")
 def insert_options(ticker, data):
 
     # Insert into DB with upsert on conflict
+    if data:
+        with Session() as session:
+            rows = [
+                {
+                    "symbol": str(ticker).upper(),
+                    "contract_symbol": opt.contractSymbol,
+                    "expiry_date": opt.expiry_date,
+                    "option_type": opt.option_type,
+                    "strike": opt.strike,
+                    "underlying_price": opt.underlying_price,
+                    "last_trade_date": opt.lastTradeDate,
+                    "last_price": opt.lastPrice,
+                    "bid": opt.bid,
+                    "ask": opt.ask,
+                    "volume": opt.volume,
+                    "open_interest": opt.openInterest,
+                    "implied_volatility": opt.impliedVolatility,
+                    "delta": opt.delta,
+                    "vega": opt.vega,
+                    "theta": opt.theta,
+                    "gamma": opt.gamma,
+                }
+                for opt in data
+            ]
+
+            stmt = insert(OptionsEodHistory).values(rows)
+            stmt = stmt.on_conflict_do_update(
+                constraint="options_eod_history_unique",
+                set_={
+                    "last_trade_date": stmt.excluded.last_trade_date,
+                    "last_price": stmt.excluded.last_price,
+                    "bid": stmt.excluded.bid,
+                    "ask": stmt.excluded.ask,
+                    "volume": stmt.excluded.volume,
+                    "open_interest": stmt.excluded.open_interest,
+                    "implied_volatility": stmt.excluded.implied_volatility,
+                    "delta": stmt.excluded.delta,
+                    "vega": stmt.excluded.vega,
+                    "theta": stmt.excluded.theta,
+                    "gamma": stmt.excluded.gamma,
+                },
+            )
+
+            session.execute(stmt)
+            session.commit()
+    else:
+        return
+
+def insert_historical_price(ticker, data):
     with Session() as session:
         rows = [
             {
                 "symbol": str(ticker).upper(),
-                "contract_symbol": opt.contractSymbol,
-                "expiry_date": opt.expiry_date,
-                "option_type": opt.option_type,
-                "strike": opt.strike,
-                "underlying_price": opt.underlying_price,
-                "last_trade_date": opt.lastTradeDate,
-                "last_price": opt.lastPrice,
-                "bid": opt.bid,
-                "ask": opt.ask,
-                "volume": opt.volume,
-                "open_interest": opt.openInterest,
-                "implied_volatility": opt.impliedVolatility,
-                "delta": opt.delta,
-                "vega": opt.vega,
-                "theta": opt.theta,
-                "gamma": opt.gamma,
+                "date": x.date.date(),
+                "open": x.open,
+                "high": x.high,
+                "low": x.low,
+                "close": x.close,
+                "volume": x.volume
             }
-            for opt in data
+            for x in data
         ]
 
-    stmt = insert(OptionsEodHistory).values(rows)
+    stmt = insert(PriceEodHistory).values(rows)
     stmt = stmt.on_conflict_do_update(
-        constraint="options_eod_history_unique",
+        constraint="price_eod_history_unique",
         set_={
-            "last_trade_date": stmt.excluded.last_trade_date,
-            "last_price": stmt.excluded.last_price,
-            "bid": stmt.excluded.bid,
-            "ask": stmt.excluded.ask,
+            "open": stmt.excluded.open,
+            "high": stmt.excluded.high,
+            "low": stmt.excluded.low,
+            "close": stmt.excluded.close,
             "volume": stmt.excluded.volume,
-            "open_interest": stmt.excluded.open_interest,
-            "implied_volatility": stmt.excluded.implied_volatility,
-            "delta": stmt.excluded.delta,
-            "vega": stmt.excluded.vega,
-            "theta": stmt.excluded.theta,
-            "gamma": stmt.excluded.gamma,
         },
     )
 
     session.execute(stmt)
     session.commit()
-
 
 def on_market_close_time():
     """Check if current time is between 3:30pm and 3:31pm CST"""
@@ -83,6 +117,7 @@ def on_market_close_time():
 
 def main():
 
+    
     while True:
 
         time.sleep(1)
@@ -99,6 +134,18 @@ def main():
                 failed_tickers = []
 
                 for ticker in tickers:
+
+                    price_history = fetch_price_history(ticker)
+                    if not price_history.empty:
+                        validated_price_history = []
+                        for x in price_history.to_dict(orient="records"):
+                            try:
+                                validated_price_history.append(PriceHistory(**x))
+                            except:
+                                continue
+                        insert_historical_price(ticker=ticker, data=validated_price_history)
+                    
+                
                     options_exp_dates = available_exp_dates(ticker)
                     if options_exp_dates:
                         options_chain = fetch_options_chain(
@@ -137,6 +184,7 @@ def main():
                     successful_tickers=successful_tickers,
                     failed_tickers=failed_tickers,
                 )
+                refresh_materialized_views()
 
 
 main()

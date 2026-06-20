@@ -1,9 +1,25 @@
 import yfinance as yf
 import pandas as pd
 import datetime
+import shutil
+from pathlib import Path
 import pandas_market_calendars as mcal
 import holidays
 
+
+YF_CACHE_DIR = Path(__file__).resolve().parents[1] / ".yfinance_cache"
+YF_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+yf.set_tz_cache_location(str(YF_CACHE_DIR))
+
+
+def _clear_yfinance_cache():
+    if YF_CACHE_DIR.exists() and YF_CACHE_DIR.is_dir():
+        shutil.rmtree(YF_CACHE_DIR, ignore_errors=True)
+    YF_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _is_corrupt_cache_error(exc: Exception) -> bool:
+    return "database disk image is malformed" in str(exc).lower()
 
 def available_exp_dates(ticker):
     try:
@@ -75,10 +91,25 @@ def fetch_options_chain(ticker, exp_dates):
 
 def fetch_last_price(ticker):
     try:
-        return (
-            yf.Ticker(ticker)
-            .history(period="1wk", interval="1d")["Close"]
-            .to_list()[-1]
-        )
+        data = yf.Ticker(ticker).history(period="1wk", interval="1d")["Close"].to_list()
+        # Drop NaN values and return the last valid price
+        data = [price for price in data if pd.notna(price)]
+        if data:
+            return data[-1]
+        else:
+            return None
     except:
         return None
+    
+
+def fetch_price_history(ticker):
+    try:
+        data = yf.Ticker(ticker).history(period="max", interval="1d", actions=False)
+    except Exception as exc:
+        if _is_corrupt_cache_error(exc):
+            # yfinance keeps a local sqlite cache; remove it and retry once.
+            _clear_yfinance_cache()
+            data = yf.Ticker(ticker).history(period="max", interval="1d", actions=False)
+        else:
+            raise
+    return data.reset_index()

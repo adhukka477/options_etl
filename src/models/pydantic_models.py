@@ -4,6 +4,19 @@ from typing import Optional
 from greeks import *
 
 
+class PriceHistory(BaseModel):
+    date: datetime = Field(alias="Date")
+    open: float = Field(alias="Open")
+    high: float = Field(alias="High")
+    low: float = Field(alias="Low")
+    close: float = Field(alias="Close")
+    volume: int = Field(alias="Volume")
+
+    class Config:
+        orm_mode = True
+
+
+
 class OptionContract(BaseModel):
 
     contractSymbol: str

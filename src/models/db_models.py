@@ -1,8 +1,29 @@
+import uuid
+
 from sqlalchemy import Column, Integer, String, Float, DateTime, Date, Numeric
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()
+
+
+class PriceEodHistory(Base):
+    """
+    SQLAlchemy model for options_dba.price_eod_history table.
+    Stores end-of-day historical price data.
+    """
+
+    __tablename__ = "price_eod_history"
+    __table_args__ = {"schema": "options_dba"}
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    symbol = Column(String(10), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    open = Column(Numeric(10, 4), nullable=True)
+    high = Column(Numeric(10, 4), nullable=True)
+    low = Column(Numeric(10, 4), nullable=True)
+    close = Column(Numeric(10, 4), nullable=True)
+    volume = Column(Integer, nullable=True)
 
 
 class OptionsEodHistory(Base):
